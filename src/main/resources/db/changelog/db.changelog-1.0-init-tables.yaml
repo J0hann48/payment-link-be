@@ -1,0 +1,941 @@
+databaseChangeLog:
+
+  # 0) MERCHANT
+  - changeSet:
+      id: 0-create-merchant
+      author: johann
+      changes:
+        - createTable:
+            tableName: merchant
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: external_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+              - column:
+                  name: default_currency
+                  type: VARCHAR(3)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: merchant
+            indexName: ux_merchant_external_id
+            unique: true
+            columns:
+              - column:
+                  name: external_id
+
+  # 0.1) PSP (catálogo de PSPs: Stripe, Adyen)
+  - changeSet:
+      id: 0-1-create-psp
+      author: johann
+      changes:
+        - createTable:
+            tableName: psp
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: psp
+            indexName: ux_psp_code
+            unique: true
+            columns:
+              - column:
+                  name: code
+
+  # 1) RECIPIENT (destinatario MXN)
+  - changeSet:
+      id: 1-create-recipient
+      author: johann
+      changes:
+        - createTable:
+            tableName: recipient
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: merchant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: external_id
+                  type: VARCHAR(64)
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+              - column:
+                  name: country
+                  type: VARCHAR(2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bank_account
+                  type: VARCHAR(64)
+              - column:
+                  name: bank_name
+                  type: VARCHAR(128)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: recipient
+            baseColumnNames: merchant_id
+            referencedTableName: merchant
+            referencedColumnNames: id
+            constraintName: fk_recipient_merchant
+
+        - createIndex:
+            tableName: recipient
+            indexName: ix_recipient_merchant
+            columns:
+              - column:
+                  name: merchant_id
+
+  # 2) MERCHANT_FEE_CONFIG (configuración de fees por merchant)
+  - changeSet:
+      id: 2-create-merchant-fee-config
+      author: johann
+      changes:
+        - createTable:
+            tableName: merchant_fee_config
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: merchant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(128)
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+              - column:
+                  name: fixed_fee
+                  type: NUMERIC(18,2)
+              - column:
+                  name: percentage_fee
+                  type: NUMERIC(5,4)
+              - column:
+                  name: fx_markup_pct
+                  type: NUMERIC(5,4)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: merchant_fee_config
+            baseColumnNames: merchant_id
+            referencedTableName: merchant
+            referencedColumnNames: id
+            constraintName: fk_merchant_fee_config_merchant
+
+        - createIndex:
+            tableName: merchant_fee_config
+            indexName: ix_merchant_fee_config_merchant_currency
+            columns:
+              - column:
+                  name: merchant_id
+              - column:
+                  name: currency
+
+  # 3) PAYMENT_LINK
+  - changeSet:
+      id: 3-create-payment-link
+      author: johann
+      changes:
+        - createTable:
+            tableName: payment_link
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: public_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: slug
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: merchant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recipient_id
+                  type: BIGINT
+              - column:
+                  name: amount
+                  type: NUMERIC(18,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: payment_link
+            baseColumnNames: merchant_id
+            referencedTableName: merchant
+            referencedColumnNames: id
+            constraintName: fk_payment_link_merchant
+
+        - addForeignKeyConstraint:
+            baseTableName: payment_link
+            baseColumnNames: recipient_id
+            referencedTableName: recipient
+            referencedColumnNames: id
+            constraintName: fk_payment_link_recipient
+
+        - createIndex:
+            tableName: payment_link
+            indexName: ux_payment_link_slug
+            unique: true
+            columns:
+              - column:
+                  name: slug
+
+  # 4) PSP_ROUTING_RULE (routing por merchant + currency + country + brand)
+  - changeSet:
+      id: 4-create-psp-routing-rule
+      author: johann
+      changes:
+        - createTable:
+            tableName: psp_routing_rule
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: merchant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: country
+                  type: VARCHAR(2)
+              - column:
+                  name: card_brand
+                  type: VARCHAR(16)
+              - column:
+                  name: primary_psp_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: secondary_psp_id
+                  type: BIGINT
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: timeout_ms
+                  type: INT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: psp_routing_rule
+            baseColumnNames: merchant_id
+            referencedTableName: merchant
+            referencedColumnNames: id
+            constraintName: fk_psp_routing_rule_merchant
+
+        - addForeignKeyConstraint:
+            baseTableName: psp_routing_rule
+            baseColumnNames: primary_psp_id
+            referencedTableName: psp
+            referencedColumnNames: id
+            constraintName: fk_psp_routing_rule_primary_psp
+
+        - addForeignKeyConstraint:
+            baseTableName: psp_routing_rule
+            baseColumnNames: secondary_psp_id
+            referencedTableName: psp
+            referencedColumnNames: id
+            constraintName: fk_psp_routing_rule_secondary_psp
+
+        - createIndex:
+            tableName: psp_routing_rule
+            indexName: ix_psp_routing_rule_merchant_cccb
+            columns:
+              - column:
+                  name: merchant_id
+              - column:
+                  name: currency
+              - column:
+                  name: country
+              - column:
+                  name: card_brand
+
+  # 5) INCENTIVE_RULE (reglas tipo "primeras N transacciones free/discount")
+  - changeSet:
+      id: 5-create-incentive-rule
+      author: johann
+      changes:
+        - createTable:
+            tableName: incentive_rule
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: merchant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(128)
+              - column:
+                  name: max_transactions
+                  type: INT
+              - column:
+                  name: discount_type
+                  type: VARCHAR(32)    # e.g. PERCENTAGE/FIXED
+              - column:
+                  name: discount_value
+                  type: NUMERIC(18,4)
+              - column:
+                  name: active
+                  type: BOOLEAN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: incentive_rule
+            baseColumnNames: merchant_id
+            referencedTableName: merchant
+            referencedColumnNames: id
+            constraintName: fk_incentive_rule_merchant
+
+        - createIndex:
+            tableName: incentive_rule
+            indexName: ix_incentive_rule_merchant
+            columns:
+              - column:
+                  name: merchant_id
+
+  # 6) PAYMENT
+  - changeSet:
+      id: 6-create-payment
+      author: johann
+      changes:
+        - createTable:
+            tableName: payment
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: payment_link_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: merchant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recipient_id
+                  type: BIGINT
+              - column:
+                  name: psp_id
+                  type: BIGINT
+              - column:
+                  name: psp_reference
+                  type: VARCHAR(128)
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fee_total
+                  type: NUMERIC(18,2)
+              - column:
+                  name: net_amount
+                  type: NUMERIC(18,2)
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: payment
+            baseColumnNames: payment_link_id
+            referencedTableName: payment_link
+            referencedColumnNames: id
+            constraintName: fk_payment_payment_link
+
+        - addForeignKeyConstraint:
+            baseTableName: payment
+            baseColumnNames: merchant_id
+            referencedTableName: merchant
+            referencedColumnNames: id
+            constraintName: fk_payment_merchant
+
+        - addForeignKeyConstraint:
+            baseTableName: payment
+            baseColumnNames: recipient_id
+            referencedTableName: recipient
+            referencedColumnNames: id
+            constraintName: fk_payment_recipient
+
+        - addForeignKeyConstraint:
+            baseTableName: payment
+            baseColumnNames: psp_id
+            referencedTableName: psp
+            referencedColumnNames: id
+            constraintName: fk_payment_psp
+
+        - createIndex:
+            tableName: payment
+            indexName: ix_payment_merchant_created_at
+            columns:
+              - column:
+                  name: merchant_id
+              - column:
+                  name: created_at
+
+        - createIndex:
+            tableName: payment
+            indexName: ix_payment_payment_link_id
+            columns:
+              - column:
+                  name: payment_link_id
+
+  # 7) PAYMENT_FEE (detalle de fees por pago)
+  - changeSet:
+      id: 7-create-payment-fee
+      author: johann
+      changes:
+        - createTable:
+            tableName: payment_fee
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: payment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: VARCHAR(32)  # e.g. PROCESSING, FX, INCENTIVE_DISCOUNT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: NUMERIC(18,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: payment_fee
+            baseColumnNames: payment_id
+            referencedTableName: payment
+            referencedColumnNames: id
+            constraintName: fk_payment_fee_payment
+
+        - createIndex:
+            tableName: payment_fee
+            indexName: ix_payment_fee_payment_id
+            columns:
+              - column:
+                  name: payment_id
+
+  # 8) WEBHOOK_EVENT
+  - changeSet:
+      id: 8-create-webhook-event
+      author: johann
+      changes:
+        - createTable:
+            tableName: webhook_event
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: psp_name
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: TEXT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: webhook_event
+            indexName: ix_webhook_event_psp_event_type
+            columns:
+              - column:
+                  name: psp_name
+              - column:
+                  name: event_type
+
+  # 9) FX_RATE_SNAPSHOT
+  - changeSet:
+      id: 9-create-fx-rate-snapshot
+      author: johann
+      changes:
+        - createTable:
+            tableName: fx_rate_snapshot
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: payment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: from_currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rate
+                  type: NUMERIC(18,6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: jitter_applied
+                  type: NUMERIC(18,6)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: fx_rate_snapshot
+            baseColumnNames: payment_id
+            referencedTableName: payment
+            referencedColumnNames: id
+            constraintName: fk_fx_snapshot_payment
+
+        - createIndex:
+            tableName: fx_rate_snapshot
+            indexName: ux_fx_rate_snapshot_payment_id
+            unique: true
+            columns:
+              - column:
+                  name: payment_id
+  # 10) PAYMENT_INCENTIVE (relación pago <-> incentivo aplicado)
+  - changeSet:
+      id: 10-create-payment-incentive
+      author: johann
+      changes:
+        - createTable:
+            tableName: payment_incentive
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: payment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: incentive_rule_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: discount_amount
+                  type: NUMERIC(18,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: payment_incentive
+            baseColumnNames: payment_id
+            referencedTableName: payment
+            referencedColumnNames: id
+            constraintName: fk_payment_incentive_payment
+
+        - addForeignKeyConstraint:
+            baseTableName: payment_incentive
+            baseColumnNames: incentive_rule_id
+            referencedTableName: incentive_rule
+            referencedColumnNames: id
+            constraintName: fk_payment_incentive_rule
+
+        - createIndex:
+            tableName: payment_incentive
+            indexName: ix_payment_incentive_payment_id
+            columns:
+              - column:
+                  name: payment_id
+
+        - createIndex:
+            tableName: payment_incentive
+            indexName: ix_payment_incentive_rule_id
+            columns:
+              - column:
+                  name: incentive_rule_id
+  # 11) SEED DATA BÁSICA PARA DEMO
+  - changeSet:
+      id: 11-seed-basic-data
+      author: johann
+      changes:
+        # PSPs: STRIPE / ADYEN
+        - insert:
+            tableName: psp
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: code
+                  value: "STRIPE"
+              - column:
+                  name: name
+                  value: "Stripe (Mock)"
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"
+
+        - insert:
+            tableName: psp
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 2
+              - column:
+                  name: code
+                  value: "ADYEN"
+              - column:
+                  name: name
+                  value: "Adyen (Mock)"
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"
+
+        # Merchant demo
+        - insert:
+            tableName: merchant
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: external_id
+                  value: "merchant_demo_1"
+              - column:
+                  name: name
+                  value: "Demo Merchant"
+              - column:
+                  name: email
+                  value: "demo@merchant.test"
+              - column:
+                  name: default_currency
+                  value: "USD"
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"
+
+        # Recipient MXN para ese merchant
+        - insert:
+            tableName: recipient
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: merchant_id
+                  valueNumeric: 1
+              - column:
+                  name: external_id
+                  value: "recipient_demo_1"
+              - column:
+                  name: name
+                  value: "Recipient MXN Demo"
+              - column:
+                  name: email
+                  value: "recipient@demo.test"
+              - column:
+                  name: country
+                  value: "MX"
+              - column:
+                  name: bank_account
+                  value: "1234567890"
+              - column:
+                  name: bank_name
+                  value: "Banco Demo"
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"
+
+        # Config de fees del merchant
+        - insert:
+            tableName: merchant_fee_config
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: merchant_id
+                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: "Default USD Fees"
+              - column:
+                  name: currency
+                  value: "USD"
+              - column:
+                  name: fixed_fee
+                  valueNumeric: 0.30
+              - column:
+                  name: percentage_fee
+                  valueNumeric: 0.029
+              - column:
+                  name: fx_markup_pct
+                  valueNumeric: 0.010
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"
+
+        # Regla de routing PSP
+        - insert:
+            tableName: psp_routing_rule
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: merchant_id
+                  valueNumeric: 1
+              - column:
+                  name: currency
+                  value: "USD"
+              - column:
+                  name: country
+                  value: "MX"
+              - column:
+                  name: card_brand
+                  value: "VISA"
+              - column:
+                  name: primary_psp_id
+                  valueNumeric: 1   # STRIPE
+              - column:
+                  name: secondary_psp_id
+                  valueNumeric: 2   # ADYEN
+              - column:
+                  name: enabled
+                  valueBoolean: true
+              - column:
+                  name: timeout_ms
+                  valueNumeric: 3000
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"
+
+        # Regla de incentivo demo
+        - insert:
+            tableName: incentive_rule
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: merchant_id
+                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: "First 5 tx 50% fee discount"
+              - column:
+                  name: max_transactions
+                  valueNumeric: 5
+              - column:
+                  name: discount_type
+                  value: "PERCENTAGE"
+              - column:
+                  name: discount_value
+                  valueNumeric: 0.50
+              - column:
+                  name: active
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueDate: "2025-01-01T00:00:00"

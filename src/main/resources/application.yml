@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/payment_link
+    username: postgres
+    password: J0hann.48
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
