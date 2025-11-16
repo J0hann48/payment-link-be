@@ -12,3 +12,5 @@ spring:
         show_sql: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+payment-link:
+  public-base-url: https://checkout.local/pay
