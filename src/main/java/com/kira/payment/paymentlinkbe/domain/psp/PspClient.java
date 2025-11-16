@@ -3,7 +3,9 @@ package com.kira.payment.paymentlinkbe.domain.psp;
 import java.math.BigDecimal;
 
 public interface PspClient{
-    String code();
+    PspCode getCode();
 
-    PspChargeResult charge(String token, BigDecimal amount, String currency);
+    CardToken tokenizeCard(PspTokenizationRequest request);
+
+    PspChargeResult charge(PspChargeRequest request);
 }

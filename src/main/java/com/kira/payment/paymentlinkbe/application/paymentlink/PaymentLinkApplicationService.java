@@ -7,7 +7,10 @@ import com.kira.payment.paymentlinkbe.domain.merchant.MerchantNotFoundException;
 import com.kira.payment.paymentlinkbe.domain.merchant.RecipientNotFoundException;
 import com.kira.payment.paymentlinkbe.domain.payment.PaymentStatus;
 import com.kira.payment.paymentlinkbe.domain.paymentlink.PaymentLinkStatus;
+import com.kira.payment.paymentlinkbe.domain.psp.ChargeStatus;
 import com.kira.payment.paymentlinkbe.domain.psp.PspChargeResult;
+import com.kira.payment.paymentlinkbe.domain.psp.PspCode;
+import com.kira.payment.paymentlinkbe.domain.psp.RoutedPspChargeResult;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Merchant;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.MerchantRepository;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Recipient;
@@ -16,17 +19,15 @@ import com.kira.payment.paymentlinkbe.infraestructure.persistence.payment.Paymen
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.payment.PaymentRepository;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.PaymentLink;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.PaymentLinkRepository;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.Psp;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.PspRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -135,7 +136,9 @@ public class PaymentLinkApplicationService {
 
         if (paymentLink.getStatus() == PaymentLinkStatus.PAID
                 || paymentLink.getStatus() == PaymentLinkStatus.EXPIRED) {
-            throw new PaymentLinkInvalidStateException("Payment link is not payable in status: " + paymentLink.getStatus());
+            throw new PaymentLinkInvalidStateException(
+                    "Payment link is not payable in status: " + paymentLink.getStatus()
+            );
         }
 
         FeeBreakdown feeBreakdown = feeEngine.calculateForPaymentLink(
@@ -145,17 +148,20 @@ public class PaymentLinkApplicationService {
                 paymentLink.getCurrency()
         );
 
-        PspChargeResult pspResult = pspOrchestratorService.processPayment(
+        RoutedPspChargeResult routed = pspOrchestratorService.processPayment(
                 command.pspToken(),
                 paymentLink.getAmount(),
                 paymentLink.getCurrency(),
                 command.pspHint()
         );
 
-        Psp pspEntity = pspRepository.findByCode(pspResult.pspCode())
+        PspCode usedPspCode = routed.pspCode();
+        PspChargeResult pspResult = routed.result();
+
+        Psp pspEntity = pspRepository.findByCode(usedPspCode)
                 .orElse(null);
 
-        PaymentStatus paymentStatus = pspResult.success()
+        PaymentStatus paymentStatus = (pspResult.status() == ChargeStatus.SUCCEEDED)
                 ? PaymentStatus.CAPTURED
                 : PaymentStatus.FAILED;
 
@@ -164,7 +170,7 @@ public class PaymentLinkApplicationService {
                 .merchant(paymentLink.getMerchant())
                 .recipient(paymentLink.getRecipient())
                 .psp(pspEntity)
-                .pspReference(pspResult.pspReference())
+                .pspReference(pspResult.pspChargeId())
                 .status(paymentStatus)
                 .amount(paymentLink.getAmount())
                 .feeTotal(feeBreakdown.totalFees())
@@ -182,7 +188,6 @@ public class PaymentLinkApplicationService {
             paymentLinkRepository.save(paymentLink);
         }
 
-        return ProcessPaymentResult.from(savedPayment, feeBreakdown, pspResult.pspCode());
+        return ProcessPaymentResult.from(savedPayment, feeBreakdown, usedPspCode.name());
     }
-
 }

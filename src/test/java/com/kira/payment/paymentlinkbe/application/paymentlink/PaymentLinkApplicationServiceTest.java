@@ -1,12 +1,14 @@
 package com.kira.payment.paymentlinkbe.application.paymentlink;
 
-import com.kira.payment.paymentlinkbe.application.fee.DefaultFeeEngine;
 import com.kira.payment.paymentlinkbe.application.psp.PspOrchestratorService;
 import com.kira.payment.paymentlinkbe.domain.fee.FeeBreakdown;
+import com.kira.payment.paymentlinkbe.domain.fee.FeeEngine;
 import com.kira.payment.paymentlinkbe.domain.merchant.MerchantNotFoundException;
 import com.kira.payment.paymentlinkbe.domain.payment.PaymentStatus;
 import com.kira.payment.paymentlinkbe.domain.paymentlink.PaymentLinkStatus;
 import com.kira.payment.paymentlinkbe.domain.psp.PspChargeResult;
+import com.kira.payment.paymentlinkbe.domain.psp.PspCode;
+import com.kira.payment.paymentlinkbe.domain.psp.RoutedPspChargeResult;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Merchant;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.MerchantRepository;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Recipient;
@@ -48,7 +50,7 @@ class PaymentLinkApplicationServiceTest {
     private RecipientRepository recipientRepository;
 
     @Mock
-    private DefaultFeeEngine feeEngine;
+    private FeeEngine feeEngine;
 
     @Mock
     private PspOrchestratorService pspOrchestratorService;
@@ -233,21 +235,27 @@ class PaymentLinkApplicationServiceTest {
                 new BigDecimal("100.00"), "USD"))
                 .thenReturn(breakdown);
 
-        PspChargeResult pspResult = new PspChargeResult(
-                "STRIPE",
-                "STRIPE_ref",
-                true,
-                "CAPTURED",
+        // Nuevo PspChargeResult
+        PspChargeResult pspResult = PspChargeResult.success(
+                "psp_ch_123",
                 new BigDecimal("100.00"),
                 "USD"
         );
-        when(pspOrchestratorService.processPayment("token123",
-                new BigDecimal("100.00"), "USD", null))
-                .thenReturn(pspResult);
+        RoutedPspChargeResult routed = new RoutedPspChargeResult(
+                PspCode.STRIPE,
+                pspResult
+        );
+
+        when(pspOrchestratorService.processPayment(
+                "token123",
+                new BigDecimal("100.00"),
+                "USD",
+                null
+        )).thenReturn(routed);
 
         Psp pspEntity = new Psp();
-        pspEntity.setCode("STRIPE");
-        when(pspRepository.findByCode("STRIPE"))
+        pspEntity.setCode(PspCode.STRIPE);
+        when(pspRepository.findByCode(PspCode.STRIPE))
                 .thenReturn(Optional.of(pspEntity));
 
         when(paymentRepository.save(any(Payment.class)))
@@ -275,7 +283,7 @@ class PaymentLinkApplicationServiceTest {
         verify(paymentRepository).save(paymentCaptor.capture());
         Payment savedPayment = paymentCaptor.getValue();
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
-        assertThat(savedPayment.getPspReference()).isEqualTo("STRIPE_ref");
+        assertThat(savedPayment.getPspReference()).isEqualTo("psp_ch_123");
     }
 
     @Test
@@ -293,4 +301,133 @@ class PaymentLinkApplicationServiceTest {
         assertThatThrownBy(() -> service.processPayment(slug, command))
                 .isInstanceOf(PaymentLinkInvalidStateException.class);
     }
+
+    @Test
+    void getPaymentLink_shouldExpireLinkWhenExpiredInPast() {
+        // given
+        String slug = "expired123";
+        Merchant merchant = new Merchant();
+        merchant.setId(1L);
+
+        PaymentLink link = new PaymentLink();
+        link.setId(123L);
+        link.setSlug(slug);
+        link.setMerchant(merchant);
+        link.setAmount(new BigDecimal("100.00"));
+        link.setCurrency("USD");
+        link.setDescription("Expired payment");
+        link.setStatus(PaymentLinkStatus.CREATED);
+        link.setCreatedAt(LocalDateTime.now().minusDays(10));
+        link.setExpiresAt(LocalDateTime.now().minusDays(1));
+
+        when(paymentLinkRepository.findBySlug(slug))
+                .thenReturn(Optional.of(link));
+
+        FeeBreakdown breakdown = new FeeBreakdown(
+                new BigDecimal("100.00"),
+                new BigDecimal("3.00"),
+                new BigDecimal("1.00"),
+                BigDecimal.ZERO,
+                new BigDecimal("4.00"),
+                new BigDecimal("96.00"),
+                "USD"
+        );
+        when(feeEngine.calculateForPaymentLink(
+                1L,
+                null,
+                new BigDecimal("100.00"),
+                "USD"
+        )).thenReturn(breakdown);
+
+        // when
+        PaymentLinkView view = service.getPaymentLink(slug);
+
+        // then
+        assertThat(view.id()).isEqualTo(123L);
+        assertThat(view.slug()).isEqualTo(slug);
+        assertThat(view.feeBreakdown()).isEqualTo(breakdown);
+        assertThat(link.getStatus()).isEqualTo(PaymentLinkStatus.EXPIRED);
+    }
+
+    @Test
+    void processPayment_shouldCreateFailedPaymentAndNotMarkLinkAsPaidWhenPspFails() {
+        // given
+        String slug = "payFail123";
+        Merchant merchant = new Merchant();
+        merchant.setId(1L);
+
+        PaymentLink link = new PaymentLink();
+        link.setId(10L);
+        link.setSlug(slug);
+        link.setMerchant(merchant);
+        link.setAmount(new BigDecimal("100.00"));
+        link.setCurrency("USD");
+        link.setStatus(PaymentLinkStatus.CREATED);
+
+        when(paymentLinkRepository.findBySlug(slug))
+                .thenReturn(Optional.of(link));
+
+        FeeBreakdown breakdown = new FeeBreakdown(
+                new BigDecimal("100.00"),
+                new BigDecimal("3.00"),
+                new BigDecimal("1.00"),
+                BigDecimal.ZERO,
+                new BigDecimal("4.00"),
+                new BigDecimal("96.00"),
+                "USD"
+        );
+        when(feeEngine.calculateForPaymentLink(
+                1L,
+                null,
+                new BigDecimal("100.00"),
+                "USD"
+        )).thenReturn(breakdown);
+
+        PspChargeResult failedResult = PspChargeResult.failure(
+                "psp_ch_failed_123",
+                "ERR_GENERIC",
+                "Generic PSP error"
+        );
+        RoutedPspChargeResult routed = new RoutedPspChargeResult(
+                PspCode.STRIPE,
+                failedResult
+        );
+        when(pspOrchestratorService.processPayment(
+                "token123",
+                new BigDecimal("100.00"),
+                "USD",
+                null
+        )).thenReturn(routed);
+
+        Psp pspEntity = new Psp();
+        pspEntity.setCode(PspCode.STRIPE);
+        when(pspRepository.findByCode(PspCode.STRIPE))
+                .thenReturn(Optional.of(pspEntity));
+
+        when(paymentRepository.save(any(Payment.class)))
+                .thenAnswer(invocation -> {
+                    Payment p = invocation.getArgument(0);
+                    p.setId(1000L);
+                    return p;
+                });
+
+        ProcessPaymentCommand command = new ProcessPaymentCommand("token123", null);
+
+        // when
+        ProcessPaymentResult result = service.processPayment(slug, command);
+
+        // then
+        assertThat(result.paymentId()).isEqualTo(1000L);
+        assertThat(result.paymentStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(result.amount()).isEqualByComparingTo("100.00");
+        assertThat(result.feeBreakdown()).isEqualTo(breakdown);
+        assertThat(result.pspUsed()).isEqualTo("STRIPE");
+        ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
+        verify(paymentRepository).save(paymentCaptor.capture());
+        Payment savedPayment = paymentCaptor.getValue();
+        assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(savedPayment.getPspReference()).isEqualTo("psp_ch_failed_123");
+        assertThat(link.getStatus()).isEqualTo(PaymentLinkStatus.CREATED);
+    }
+
 }

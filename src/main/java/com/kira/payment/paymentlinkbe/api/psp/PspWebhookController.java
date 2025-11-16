@@ -1,42 +1,41 @@
 package com.kira.payment.paymentlinkbe.api.psp;
 
-import com.kira.payment.paymentlinkbe.application.psp.PspWebhookService;
-import jakarta.validation.Valid;
+import com.kira.payment.paymentlinkbe.application.webhook.WebhookApplicationService;
+import com.kira.payment.paymentlinkbe.domain.psp.ChargeStatus;
+import com.kira.payment.paymentlinkbe.domain.psp.PspChargeWebhookRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/psp/webhook")
+@RequestMapping("/api/webhooks/psp")
 @RequiredArgsConstructor
 public class PspWebhookController {
 
-    private final PspWebhookService pspWebhookService;
+    private final WebhookApplicationService webhookApplicationService;
 
-    @PostMapping("/stripe")
-    @ResponseStatus(HttpStatus.OK)
-    public WebhookAckResponse handleStripeWebhook(
-            @Valid @RequestBody StripeWebhookRequest request
+    @PostMapping("/charges")
+    public ResponseEntity<Void> handleChargeWebhook(
+            @RequestBody PspChargeWebhookRequest request
     ) {
-        pspWebhookService.handleStripeWebhook(
-                request.pspReference(),
-                request.status()
-        );
-        return new WebhookAckResponse(true);
-    }
-
-    @PostMapping("/adyen")
-    @ResponseStatus(HttpStatus.OK)
-    public WebhookAckResponse handleAdyenWebhook(
-            @Valid @RequestBody AdyenWebhookRequest request
-    ) {
-        boolean success = "true".equalsIgnoreCase(request.success());
-
-        pspWebhookService.handleAdyenWebhook(
-                request.pspReference(),
-                request.eventCode(),
-                success
-        );
-        return new WebhookAckResponse(true);
+        if (request.status() == ChargeStatus.SUCCEEDED) {
+            webhookApplicationService.handlePspChargeSucceeded(
+                    request.pspCode(),
+                    request.pspChargeId(),
+                    request.paymentId()
+            );
+        } else if (request.status() == ChargeStatus.FAILED) {
+            webhookApplicationService.handlePspChargeFailed(
+                    request.pspCode(),
+                    request.pspChargeId(),
+                    request.paymentId(),
+                    request.failureCode(),
+                    request.failureMessage()
+            );
+        }
+        return ResponseEntity.ok().build();
     }
 }

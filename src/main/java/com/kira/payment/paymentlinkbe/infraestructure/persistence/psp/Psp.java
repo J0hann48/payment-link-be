@@ -1,11 +1,8 @@
 package com.kira.payment.paymentlinkbe.infraestructure.persistence.psp;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.kira.payment.paymentlinkbe.domain.psp.PspCode;
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,14 +18,16 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @Table(name = "psp")
+@EqualsAndHashCode(of = "id")
 public class Psp {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, unique = true, length = 32)
-    private String code;
+    private PspCode code;
 
     @Column(nullable = false, length = 128)
     private String name;
