@@ -46,6 +46,18 @@ public class StripePspClientMock implements PspClient {
 
     @Override
     public PspChargeResult charge(PspChargeRequest request) {
+        if ("sim_stripe_exception".equalsIgnoreCase(request.cardToken())) {
+            throw new RuntimeException("Simulated Stripe outage");
+        }
+
+        if ("sim_stripe_failed".equalsIgnoreCase(request.cardToken())) {
+            return PspChargeResult.failure(
+                    "ch_simulated_stripe",
+                    "SIM_STRIPE_FAILED",
+                    "Simulated Stripe failure"
+            );
+        }
+
         if (!tokens.containsKey(request.cardToken())) {
             String pspChargeId = "ch_stripe_mock_" + UUID.randomUUID();
             charges.put(pspChargeId, ChargeStatus.FAILED);

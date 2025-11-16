@@ -1,0 +1,17 @@
+spring:
+  profiles: aws
+  data:
+    redis:
+      host: your-redis-endpoint.xxxxxx.ng.0001.use1.cache.amazonaws.com
+      password: ${REDIS_PASSWORD:}
+      timeout: 6000
+      port: 6379
+
+fx:
+  enabled: true
+  payout-currency: MXN
+  markup-percent: 0.02
+  cache:
+    ttl-seconds: 60
+  mock:
+    max-jitter-percent: 0.01

@@ -46,6 +46,17 @@ public class AdyenPspClientMock implements PspClient {
 
     @Override
     public PspChargeResult charge(PspChargeRequest request) {
+        if ("sim_adyen_exception".equalsIgnoreCase(request.cardToken())) {
+            throw new RuntimeException("Simulated Adyen outage");
+        }
+
+        if ("sim_adyen_failed".equalsIgnoreCase(request.cardToken())) {
+            return PspChargeResult.failure(
+                    "ch_simulated_adyen",
+                    "SIM_ADYEN_FAILED",
+                    "Simulated Adyen failure"
+            );
+        }
         if (!tokens.containsKey(request.cardToken())) {
             String pspChargeId = "ady_ch_" + UUID.randomUUID();
             charges.put(pspChargeId, ChargeStatus.FAILED);
