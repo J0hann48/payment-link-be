@@ -7,8 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    @Query("select p from Payment p join fetch p.paymentLink pl where pl.slug = :slug")
-    Optional<Payment> findByPaymentLinkSlug(@Param("slug") String slug);
+    Optional<Payment> findByPaymentLinkIdAndIdempotencyKey(Long paymentLinkId, String idempotencyKey);
 
     Optional<Payment> findByPspReference(String pspReference);
 }

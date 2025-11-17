@@ -13,18 +13,18 @@ public record FeeBreakdownResponse(
         String currency
 ) {
 
-    public static FeeBreakdownResponse from(FeeBreakdown feeBreakdown) {
-        if (feeBreakdown == null) {
+    public static FeeBreakdownResponse from(FeeBreakdown fb) {
+        if (fb == null) {
             return null;
         }
         return new FeeBreakdownResponse(
-                feeBreakdown.baseAmount(),
-                feeBreakdown.processingFee(),
-                feeBreakdown.fxFee(),
-                feeBreakdown.incentiveDiscount(),
-                feeBreakdown.totalFees(),
-                feeBreakdown.finalAmount(),
-                feeBreakdown.currency()
+                fb.baseAmount(),
+                fb.processingFee(),
+                fb.fxFee(),
+                fb.incentiveDiscount(),
+                fb.totalFees(),
+                fb.finalAmount(),
+                fb.currency()
         );
     }
 }

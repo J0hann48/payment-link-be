@@ -13,4 +13,6 @@ public interface PaymentLinkRepository extends JpaRepository<PaymentLink, Long> 
     Optional<PaymentLink> findBySlugAndMerchantId(String slug, Long merchantId);
 
     List<PaymentLink> findByMerchantIdOrderByCreatedAtDesc(Long merchantId);
+
+    List<PaymentLink> findAllByOrderByCreatedAtDesc();
 }

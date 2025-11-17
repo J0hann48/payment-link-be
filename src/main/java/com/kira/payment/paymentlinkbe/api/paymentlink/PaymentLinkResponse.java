@@ -19,7 +19,8 @@ public record PaymentLinkResponse(
         LocalDateTime expiresAt,
         LocalDateTime createdAt,
         String checkoutUrl,
-        FeePreviewResponse feePreview
+        FeeBreakdownResponse feeBreakdown,
+        String preferredPsp
 ) {
 
     public static PaymentLinkResponse from(PaymentLinkView view) {
@@ -40,7 +41,8 @@ public record PaymentLinkResponse(
                 view.expiresAt(),
                 view.createdAt(),
                 view.checkoutUrl(),
-                feePreview
+                FeeBreakdownResponse.from(view.feeBreakdown()),
+                view.preferredPsp() != null ? view.preferredPsp() : null
         );
     }
 

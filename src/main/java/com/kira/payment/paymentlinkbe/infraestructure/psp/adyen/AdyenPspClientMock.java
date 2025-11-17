@@ -1,7 +1,9 @@
 package com.kira.payment.paymentlinkbe.infraestructure.psp.adyen;
 
+import com.kira.payment.paymentlinkbe.api.error.CardTokenizationException;
 import com.kira.payment.paymentlinkbe.domain.psp.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -9,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AdyenPspClientMock implements PspClient {
@@ -24,8 +27,12 @@ public class AdyenPspClientMock implements PspClient {
 
     @Override
     public CardToken tokenizeCard(PspTokenizationRequest request) {
-        if (request.cardNumber() == null || request.cardNumber().length() < 12) {
-            throw new IllegalArgumentException("Invalid card number for Adyen mock");
+        if (request.cardNumber() == null || request.cardNumber().length() < 16) {
+            log.error("Card number is empty");
+            throw new CardTokenizationException(
+                    "INVALID_CARD_NUMBER",
+                    "Card number must be at least 16 digits"
+            );
         }
 
         String token = "ady_tok_" + UUID.randomUUID();

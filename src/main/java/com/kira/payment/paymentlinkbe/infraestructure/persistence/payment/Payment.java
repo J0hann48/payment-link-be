@@ -1,6 +1,7 @@
 package com.kira.payment.paymentlinkbe.infraestructure.persistence.payment;
 
 import com.kira.payment.paymentlinkbe.domain.payment.PaymentStatus;
+import com.kira.payment.paymentlinkbe.domain.psp.PspCode;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Merchant;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Recipient;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.PaymentLink;
@@ -71,6 +72,13 @@ public class Payment {
 
     @Column(length = 3)
     private String currency;
+
+    @Column(name = "idempotency_key", length = 64)
+    private String idempotencyKey;
+
+    @Column(name = "psp_code", length = 32)
+    @Enumerated(EnumType.STRING)
+    private PspCode pspCode;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

@@ -280,7 +280,7 @@ class PaymentLinkApplicationServiceTest {
                     return p;
                 });
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand("token123", null);
+        ProcessPaymentCommand command = new ProcessPaymentCommand("token123", null, "1");
 
         // when
         ProcessPaymentResult result = service.processPayment(slug, command);
@@ -311,7 +311,7 @@ class PaymentLinkApplicationServiceTest {
         when(paymentLinkRepository.findBySlug(slug))
                 .thenReturn(Optional.of(link));
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand("token", null);
+        ProcessPaymentCommand command = new ProcessPaymentCommand("token", null, "1");
 
         assertThatThrownBy(() -> service.processPayment(slug, command))
                 .isInstanceOf(PaymentLinkInvalidStateException.class);
@@ -426,7 +426,7 @@ class PaymentLinkApplicationServiceTest {
                     return p;
                 });
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand("token123", null);
+        ProcessPaymentCommand command = new ProcessPaymentCommand("token123", null, "1");
 
         // when
         ProcessPaymentResult result = service.processPayment(slug, command);

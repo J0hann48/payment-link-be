@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2025-11-17-01-add-idempotency-key-to-payment
+      author: johann
+      changes:
+        - addColumn:
+            tableName: payment
+            columns:
+              - column:
+                  name: idempotency_key
+                  type: varchar(64)
+
+        - createIndex:
+            tableName: payment
+            indexName: ux_payment_payment_link_id_idempotency_key
+            unique: true
+            columns:
+              - column:
+                  name: payment_link_id
+              - column:
+                  name: idempotency_key

@@ -18,10 +18,10 @@ import java.util.Random;
 @Primary
 public class RandomFxRateProvider implements FxRateProvider {
 
-    @Value("${fx.base-rates:USD/MXN=17.20}")
+    @Value("${fx.base-rates}")
     private String baseRatesConfig;
 
-    @Value("${fx.jitter-bps:50}")
+    @Value("${fx.jitter-bps}")
     private int jitterBps;
 
     private final Random random = new Random();
@@ -60,7 +60,7 @@ public class RandomFxRateProvider implements FxRateProvider {
             );
         }
 
-        int bpsDelta = jitterBps > 0 ? random.nextInt(jitterBps + 1) : 0; // 0..jitterBps
+        int bpsDelta = jitterBps > 0 ? random.nextInt(jitterBps + 1) : 0;
         int sign = random.nextBoolean() ? 1 : -1;
         int signedBps = sign * bpsDelta;
         BigDecimal jitterFactor = BigDecimal.valueOf(signedBps)

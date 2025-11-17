@@ -29,5 +29,5 @@ fx:
   enabled: true
   payout-currency: MXN
   markup-percent: 0.00
-  base-rates: "USD/MXN=17.20,EUR/MXN=18.50"
+  base-rates: "USD/MXN=17.20"
   jitter-bps: 50

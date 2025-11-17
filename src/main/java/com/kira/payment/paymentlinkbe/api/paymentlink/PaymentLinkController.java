@@ -67,22 +67,28 @@ public class PaymentLinkController {
                     Implements PSP failover (primary + secondary PSP).
                     """
     )
+
     @PostMapping("/{slug}/pay")
     public ProcessPaymentResponse processPayment(
             @PathVariable String slug,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody ProcessPaymentRequest request
     ) {
         ProcessPaymentResult result = paymentLinkService.processPayment(
                 slug,
-                new ProcessPaymentCommand(request.pspToken(), request.pspHint())
+                new ProcessPaymentCommand(
+                        request.pspToken(),
+                        request.pspHint(),
+                        idempotencyKey
+                )
         );
         return ProcessPaymentResponse.from(result);
     }
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<PaymentLinkResponse> listByMerchant(@RequestParam Long merchantId) {
-        List<PaymentLinkView> views = paymentLinkService.listByMerchant(merchantId);
+    public List<PaymentLinkResponse> listByMerchant() {
+        List<PaymentLinkView> views = paymentLinkService.listAll();
         return views.stream()
                 .map(PaymentLinkResponse::from)
                 .toList();

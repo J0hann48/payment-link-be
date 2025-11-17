@@ -24,6 +24,7 @@ import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.Psp;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.PspRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -143,6 +145,36 @@ public class PaymentLinkApplicationService {
         PaymentLink paymentLink = paymentLinkRepository.findBySlug(slug)
                 .orElseThrow(() -> new PaymentLinkNotFoundException(slug));
 
+        LocalDateTime now = LocalDateTime.now();
+        if (command.idempotencyKey() != null && !command.idempotencyKey().isBlank()) {
+            Optional<Payment> existingOpt = paymentRepository
+                    .findByPaymentLinkIdAndIdempotencyKey(paymentLink.getId(), command.idempotencyKey());
+
+            if (existingOpt.isPresent()) {
+                Payment existing = existingOpt.get();
+
+                FeeBreakdown existingFee = feeEngine.calculateForPaymentLink(
+                        existing.getMerchant().getId(),
+                        existing.getRecipient() != null ? existing.getRecipient().getId() : null,
+                        existing.getAmount(),
+                        existing.getCurrency()
+                );
+
+                PspCode usedPspCode = existing.getPsp() != null
+                        ? existing.getPsp().getCode()
+                        : resolvePreferredPsp(paymentLink.getMerchant());
+
+                return ProcessPaymentResult.from(existing, existingFee, usedPspCode.name());
+            }
+        }
+
+        if (paymentLink.getExpiresAt() != null
+                && paymentLink.getExpiresAt().isBefore(now)) {
+            paymentLink.setStatus(PaymentLinkStatus.EXPIRED);
+            paymentLink.setUpdatedAt(now);
+            paymentLinkRepository.save(paymentLink);
+        }
+
         if (paymentLink.getStatus() == PaymentLinkStatus.PAID
                 || paymentLink.getStatus() == PaymentLinkStatus.EXPIRED) {
             throw new PaymentLinkInvalidStateException(
@@ -188,13 +220,12 @@ public class PaymentLinkApplicationService {
                 .feeTotal(feeBreakdown.totalFees())
                 .netAmount(feeBreakdown.finalAmount())
                 .currency(paymentLink.getCurrency())
+                .idempotencyKey(command.idempotencyKey())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         if (paymentStatus == PaymentStatus.CAPTURED) {
-
-            // PROCESSING (fixed + porcentaje)
             if (feeBreakdown.processingFee().compareTo(BigDecimal.ZERO) > 0) {
                 payment.getFees().add(PaymentFee.builder()
                         .payment(payment)
@@ -204,7 +235,6 @@ public class PaymentLinkApplicationService {
                         .build());
             }
 
-            // FX
             if (feeBreakdown.fxFee().compareTo(BigDecimal.ZERO) > 0) {
                 payment.getFees().add(PaymentFee.builder()
                         .payment(payment)
@@ -228,10 +258,9 @@ public class PaymentLinkApplicationService {
 
         if (paymentStatus == PaymentStatus.CAPTURED) {
             paymentLink.setStatus(PaymentLinkStatus.PAID);
-            paymentLink.setUpdatedAt(LocalDateTime.now());
+            paymentLink.setUpdatedAt(now);
             paymentLinkRepository.save(paymentLink);
         }
-
         return ProcessPaymentResult.from(savedPayment, feeBreakdown, usedPspCode.name());
     }
     private PspCode resolvePreferredPsp(Merchant merchant) {
@@ -310,6 +339,36 @@ public class PaymentLinkApplicationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<PaymentLinkView> listAll() {
+
+        List<PaymentLink> links = paymentLinkRepository.findAllByOrderByCreatedAtDesc();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return links.stream()
+                .map(link -> {
+                    if (link.getExpiresAt() != null
+                            && link.getExpiresAt().isBefore(now)
+                            && link.getStatus() != PaymentLinkStatus.EXPIRED) {
+                        link.setStatus(PaymentLinkStatus.EXPIRED);
+                    }
+
+                    FeeBreakdown feeBreakdown = feeEngine.calculateForPaymentLink(
+                            link.getMerchant().getId(),
+                            link.getRecipient() != null ? link.getRecipient().getId() : null,
+                            link.getAmount(),
+                            link.getCurrency()
+                    );
+
+                    String checkoutUrl = buildCheckoutUrl(link.getSlug());
+                    PspCode preferredPsp = resolvePreferredPsp(link.getMerchant());
+
+                    return PaymentLinkView.from(link, feeBreakdown, checkoutUrl, preferredPsp);
+                })
+                .toList();
+    }
+
     @Transactional
     public PaymentLinkView updatePaymentLink(String slug, UpdatePaymentLinkCommand command) {
         PaymentLink paymentLink = paymentLinkRepository.findBySlug(slug)
@@ -327,6 +386,14 @@ public class PaymentLinkApplicationService {
             throw new PaymentLinkInvalidStateException(
                     "Payment link is not editable in status: " + paymentLink.getStatus()
             );
+        }
+
+        if (command.expiresAt() != null) {
+            LocalDateTime newExpiresAt = command.expiresAt().atStartOfDay();
+            if (newExpiresAt.isBefore(LocalDateTime.now())) {
+                throw new PaymentLinkInvalidStateException("Expiration date must be in the future");
+            }
+            paymentLink.setExpiresAt(newExpiresAt);
         }
 
         if (command.recipientId() != null) {
@@ -365,11 +432,6 @@ public class PaymentLinkApplicationService {
                 .findBySlugAndMerchantId(slug, merchantId)
                 .orElseThrow(() -> new PaymentLinkNotFoundException(slug));
 
-        if (paymentLink.getStatus() == PaymentLinkStatus.PAID) {
-            throw new PaymentLinkInvalidStateException(
-                    "Cannot delete a PAID payment link"
-            );
-        }
         paymentLink.setStatus(PaymentLinkStatus.EXPIRED);
         paymentLink.setUpdatedAt(LocalDateTime.now());
         paymentLinkRepository.save(paymentLink);
