@@ -7,6 +7,7 @@ import com.kira.payment.paymentlinkbe.domain.merchant.MerchantNotFoundException;
 import com.kira.payment.paymentlinkbe.domain.payment.PaymentStatus;
 import com.kira.payment.paymentlinkbe.domain.paymentlink.PaymentLinkStatus;
 import com.kira.payment.paymentlinkbe.domain.psp.PspChargeResult;
+import com.kira.payment.paymentlinkbe.domain.psp.PspClient;
 import com.kira.payment.paymentlinkbe.domain.psp.PspCode;
 import com.kira.payment.paymentlinkbe.domain.psp.RoutedPspChargeResult;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Merchant;
@@ -19,15 +20,18 @@ import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.Pa
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.PaymentLinkRepository;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.Psp;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.PspRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,8 +62,17 @@ class PaymentLinkApplicationServiceTest {
     @Mock
     private PspRepository pspRepository;
 
+    @Mock
+    private Map<String, PspClient> pspClients;
+
     @InjectMocks
     private PaymentLinkApplicationService service;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(service, "publicBaseUrl", "https://checkout.test");
+        ReflectionTestUtils.setField(service, "defaultPspCode", "STRIPE");
+    }
 
     @Test
     void createPaymentLink_shouldCreateLinkAndReturnView() {
@@ -79,6 +92,9 @@ class PaymentLinkApplicationServiceTest {
                 .thenReturn(Optional.of(merchant));
         when(recipientRepository.findById(recipientId))
                 .thenReturn(Optional.of(recipient));
+
+        when(paymentLinkRepository.existsBySlug(anyString()))
+                .thenReturn(false);
 
         PaymentLink savedLink = new PaymentLink();
         savedLink.setId(123L);
@@ -235,7 +251,6 @@ class PaymentLinkApplicationServiceTest {
                 new BigDecimal("100.00"), "USD"))
                 .thenReturn(breakdown);
 
-        // Nuevo PspChargeResult
         PspChargeResult pspResult = PspChargeResult.success(
                 "psp_ch_123",
                 new BigDecimal("100.00"),
@@ -247,10 +262,10 @@ class PaymentLinkApplicationServiceTest {
         );
 
         when(pspOrchestratorService.processPayment(
-                "token123",
-                new BigDecimal("100.00"),
-                "USD",
-                null
+                eq("token123"),
+                eq(new BigDecimal("100.00")),
+                eq("USD"),
+                eq("STRIPE")
         )).thenReturn(routed);
 
         Psp pspEntity = new Psp();
@@ -393,10 +408,10 @@ class PaymentLinkApplicationServiceTest {
                 failedResult
         );
         when(pspOrchestratorService.processPayment(
-                "token123",
-                new BigDecimal("100.00"),
-                "USD",
-                null
+                eq("token123"),
+                eq(new BigDecimal("100.00")),
+                eq("USD"),
+                eq("STRIPE")
         )).thenReturn(routed);
 
         Psp pspEntity = new Psp();
@@ -422,6 +437,7 @@ class PaymentLinkApplicationServiceTest {
         assertThat(result.amount()).isEqualByComparingTo("100.00");
         assertThat(result.feeBreakdown()).isEqualTo(breakdown);
         assertThat(result.pspUsed()).isEqualTo("STRIPE");
+
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).save(paymentCaptor.capture());
         Payment savedPayment = paymentCaptor.getValue();

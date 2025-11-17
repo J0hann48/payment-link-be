@@ -1,4 +1,14 @@
 spring:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+    swagger-ui:
+      enabled: true
+      path: /swagger-ui.html
+    packages-to-scan:
+      - com.kira.payment.paymentlinkbe.api
+      - com.kira.payment.paymentlinkbe.web
+      - com.kira.payment.paymentlinkbe.application
   datasource:
     url: jdbc:postgresql://localhost:5432/payment_link
     username: postgres
@@ -14,6 +24,10 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 payment-link:
   public-base-url: https://checkout.local/pay
+  default-psp: STRIPE
 fx:
-  mock:
-    max-jitter-percent: 0.01
+  enabled: true
+  payout-currency: MXN
+  markup-percent: 0.00
+  base-rates: "USD/MXN=17.20,EUR/MXN=18.50"
+  jitter-bps: 50

@@ -1,6 +1,7 @@
 package com.kira.payment.paymentlinkbe.application.paymentlink;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record CreatePaymentLinkCommand(
@@ -9,5 +10,5 @@ public record CreatePaymentLinkCommand(
         BigDecimal amount,
         String currency,
         String description,
-        LocalDateTime expiresAt
+        LocalDate expiresAt
 ) { }

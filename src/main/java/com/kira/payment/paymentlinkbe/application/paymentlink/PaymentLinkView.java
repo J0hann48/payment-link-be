@@ -2,6 +2,7 @@ package com.kira.payment.paymentlinkbe.application.paymentlink;
 
 import com.kira.payment.paymentlinkbe.domain.fee.FeeBreakdown;
 import com.kira.payment.paymentlinkbe.domain.paymentlink.PaymentLinkStatus;
+import com.kira.payment.paymentlinkbe.domain.psp.PspCode;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Merchant;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Recipient;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.PaymentLink;
@@ -21,13 +22,15 @@ public record PaymentLinkView(
         LocalDateTime expiresAt,
         LocalDateTime createdAt,
         String checkoutUrl,
-        FeeBreakdown feeBreakdown
+        FeeBreakdown feeBreakdown,
+        String preferredPsp
 ) {
 
     public static PaymentLinkView from(
             PaymentLink paymentLink,
             FeeBreakdown feeBreakdown,
-            String checkoutUrl
+            String checkoutUrl,
+            PspCode preferredPsp
     ) {
         Merchant merchant = paymentLink.getMerchant();
         Recipient recipient = paymentLink.getRecipient();
@@ -45,7 +48,8 @@ public record PaymentLinkView(
                 paymentLink.getExpiresAt(),
                 paymentLink.getCreatedAt(),
                 checkoutUrl,
-                feeBreakdown
+                feeBreakdown,
+                preferredPsp.name()
         );
     }
 }

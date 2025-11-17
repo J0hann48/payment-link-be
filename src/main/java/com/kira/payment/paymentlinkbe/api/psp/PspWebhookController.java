@@ -3,6 +3,8 @@ package com.kira.payment.paymentlinkbe.api.psp;
 import com.kira.payment.paymentlinkbe.application.webhook.WebhookApplicationService;
 import com.kira.payment.paymentlinkbe.domain.psp.ChargeStatus;
 import com.kira.payment.paymentlinkbe.domain.psp.PspChargeWebhookRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "PSP Webhooks", description = "Endpoints to receive PSP webhook events")
 @RestController
 @RequestMapping("/api/webhooks/psp")
 @RequiredArgsConstructor
@@ -17,6 +20,10 @@ public class PspWebhookController {
 
     private final WebhookApplicationService webhookApplicationService;
 
+    @Operation(
+            summary = "Handle PSP charge webhook",
+            description = "Receives charge status callbacks (SUCCEEDED/FAILED) from PSP mocks"
+    )
     @PostMapping("/charges")
     public ResponseEntity<Void> handleChargeWebhook(
             @RequestBody PspChargeWebhookRequest request

@@ -5,19 +5,13 @@ import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Merch
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.merchant.Recipient;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.paymentlink.PaymentLink;
 import com.kira.payment.paymentlinkbe.infraestructure.persistence.psp.Psp;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -54,6 +48,10 @@ public class Payment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "psp_id")
     private Psp psp;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PaymentFee> fees = new ArrayList<>();
 
     @Column(name = "psp_reference", length = 128)
     private String pspReference;

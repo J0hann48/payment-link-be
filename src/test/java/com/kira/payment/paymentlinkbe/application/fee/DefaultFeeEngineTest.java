@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -58,7 +59,9 @@ class DefaultFeeEngineTest {
 
         // then
         assertThat(breakdown.baseAmount()).isEqualByComparingTo("100.00");
+
         assertThat(breakdown.processingFee()).isEqualByComparingTo("4.00");
+
         assertThat(breakdown.fxFee()).isEqualByComparingTo("1.00");
         assertThat(breakdown.incentiveDiscount()).isEqualByComparingTo("0.00");
         assertThat(breakdown.totalFees()).isEqualByComparingTo("5.00");
@@ -84,7 +87,7 @@ class DefaultFeeEngineTest {
         when(merchantFeeConfigRepository.findByMerchantId(merchantId))
                 .thenReturn(Optional.of(config));
 
-        // fxEnabled = true, payoutCurrency = "MXN"
+
         org.springframework.test.util.ReflectionTestUtils
                 .setField(feeEngine, "fxEnabled", true);
         org.springframework.test.util.ReflectionTestUtils
@@ -111,9 +114,144 @@ class DefaultFeeEngineTest {
                 currency
         );
 
-        // then (fees igual que en el test anterior)
+
+        assertThat(breakdown.baseAmount()).isEqualByComparingTo("100.00");
+        assertThat(breakdown.processingFee()).isEqualByComparingTo("4.00");
+        assertThat(breakdown.fxFee()).isEqualByComparingTo("1.00");
         assertThat(breakdown.totalFees()).isEqualByComparingTo("5.00");
         assertThat(breakdown.finalAmount()).isEqualByComparingTo("95.00");
+
         verify(fxRateProvider).getQuote("USD", "MXN");
+    }
+
+    @Test
+    void calculateForPaymentLink_shouldWorkWithOnlyPercentageFee() {
+        Long merchantId = 1L;
+        Long recipientId = 10L;
+        BigDecimal amount = new BigDecimal("200.00");
+        String currency = "USD";
+
+        MerchantFeeConfig config = new MerchantFeeConfig();
+        config.setPercentageFee(new BigDecimal("0.025"));
+        config.setFixedFee(null);
+        config.setFxMarkupPct(null);
+
+        when(merchantFeeConfigRepository.findByMerchantId(merchantId))
+                .thenReturn(Optional.of(config));
+
+        org.springframework.test.util.ReflectionTestUtils
+                .setField(feeEngine, "fxEnabled", false);
+
+        FeeBreakdown breakdown = feeEngine.calculateForPaymentLink(
+                merchantId, recipientId, amount, currency
+        );
+
+        assertThat(breakdown.processingFee()).isEqualByComparingTo("5.00");
+        assertThat(breakdown.fxFee()).isEqualByComparingTo("0.00");
+        assertThat(breakdown.totalFees()).isEqualByComparingTo("5.00");
+        assertThat(breakdown.finalAmount()).isEqualByComparingTo("195.00");
+    }
+
+    @Test
+    void calculateForPaymentLink_shouldWorkWithOnlyFixedFee() {
+        Long merchantId = 1L;
+        Long recipientId = 10L;
+        BigDecimal amount = new BigDecimal("50.00");
+        String currency = "USD";
+
+        MerchantFeeConfig config = new MerchantFeeConfig();
+        config.setPercentageFee(BigDecimal.ZERO);     // 0%
+        config.setFixedFee(new BigDecimal("2.50"));
+        config.setFxMarkupPct(BigDecimal.ZERO);
+
+        when(merchantFeeConfigRepository.findByMerchantId(merchantId))
+                .thenReturn(Optional.of(config));
+
+        org.springframework.test.util.ReflectionTestUtils
+                .setField(feeEngine, "fxEnabled", false);
+
+        FeeBreakdown breakdown = feeEngine.calculateForPaymentLink(
+                merchantId, recipientId, amount, currency
+        );
+
+        assertThat(breakdown.processingFee()).isEqualByComparingTo("2.50");
+        assertThat(breakdown.fxFee()).isEqualByComparingTo("0.00");
+        assertThat(breakdown.totalFees()).isEqualByComparingTo("2.50");
+        assertThat(breakdown.finalAmount()).isEqualByComparingTo("47.50");
+    }
+
+    @Test
+    void calculateForPaymentLink_shouldReturnZeroFeesWhenAllConfigNullOrZero() {
+        Long merchantId = 1L;
+        Long recipientId = 10L;
+        BigDecimal amount = new BigDecimal("80.00");
+        String currency = "USD";
+
+        MerchantFeeConfig config = new MerchantFeeConfig();
+        config.setPercentageFee(null);
+        config.setFixedFee(null);
+        config.setFxMarkupPct(null);
+
+        when(merchantFeeConfigRepository.findByMerchantId(merchantId))
+                .thenReturn(Optional.of(config));
+
+        org.springframework.test.util.ReflectionTestUtils
+                .setField(feeEngine, "fxEnabled", false);
+
+        FeeBreakdown breakdown = feeEngine.calculateForPaymentLink(
+                merchantId, recipientId, amount, currency
+        );
+
+        assertThat(breakdown.processingFee()).isEqualByComparingTo("0.00");
+        assertThat(breakdown.fxFee()).isEqualByComparingTo("0.00");
+        assertThat(breakdown.totalFees()).isEqualByComparingTo("0.00");
+        assertThat(breakdown.finalAmount()).isEqualByComparingTo("80.00");
+    }
+
+    @Test
+    void calculateForPaymentLink_shouldNotCallFxProviderWhenCurrencyEqualsPayout() {
+        Long merchantId = 1L;
+        Long recipientId = 10L;
+        BigDecimal amount = new BigDecimal("100.00");
+        String currency = "MXN";
+
+        MerchantFeeConfig config = new MerchantFeeConfig();
+        config.setPercentageFee(new BigDecimal("0.03"));
+        config.setFixedFee(new BigDecimal("1.00"));
+        config.setFxMarkupPct(new BigDecimal("0.01"));
+
+        when(merchantFeeConfigRepository.findByMerchantId(merchantId))
+                .thenReturn(Optional.of(config));
+
+        org.springframework.test.util.ReflectionTestUtils
+                .setField(feeEngine, "fxEnabled", true);
+        org.springframework.test.util.ReflectionTestUtils
+                .setField(feeEngine, "payoutCurrency", "MXN");
+
+        FeeBreakdown breakdown = feeEngine.calculateForPaymentLink(
+                merchantId, recipientId, amount, currency
+        );
+
+        assertThat(breakdown.totalFees()).isEqualByComparingTo("5.00");
+        assertThat(breakdown.finalAmount()).isEqualByComparingTo("95.00");
+
+        verify(fxRateProvider, never()).getQuote(anyString(), anyString());
+    }
+
+    @Test
+    void calculateForPaymentLink_shouldThrowWhenMerchantFeeConfigMissing() {
+        Long merchantId = 1L;
+        Long recipientId = 10L;
+        BigDecimal amount = new BigDecimal("100.00");
+        String currency = "USD";
+
+        when(merchantFeeConfigRepository.findByMerchantId(merchantId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                feeEngine.calculateForPaymentLink(merchantId, recipientId, amount, currency)
+        )
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Merchant fee config not found for merchant " + merchantId);
     }
 }

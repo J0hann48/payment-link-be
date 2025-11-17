@@ -5,6 +5,7 @@ import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record CreatePaymentLinkRequest(
@@ -13,6 +14,6 @@ public record CreatePaymentLinkRequest(
         @NotNull @DecimalMin("0.01") BigDecimal amount,
         @NotNull @Size(min = 3, max = 3) String currency,
         @NotNull @Size(min = 1, max = 255) String description,
-        @FutureOrPresent LocalDateTime expiresAt
+        @FutureOrPresent LocalDate expiresAt
 ) {
 }
