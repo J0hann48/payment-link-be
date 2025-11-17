@@ -33,28 +33,24 @@ public class WebhookApplicationService {
 
                     switch (current) {
                         case CAPTURED -> {
-                            // Idempotente: ya está capturado
                             log.info(
                                     "[Webhook] Ignoring SUCCEEDED for already CAPTURED payment id={} pspRef={}",
                                     payment.getId(), pspChargeId
                             );
                         }
                         case FAILED -> {
-                            // Conflicto: antes lo marcaste FAILED
                             log.warn(
                                     "[Webhook] Received SUCCEEDED for FAILED payment id={} pspRef={}. Keeping FAILED.",
                                     payment.getId(), pspChargeId
                             );
                         }
                         case REFUNDED -> {
-                            // Conflicto: ya fue reembolsado
                             log.warn(
                                     "[Webhook] Received SUCCEEDED for REFUNDED payment id={} pspRef={}. Keeping REFUNDED.",
                                     payment.getId(), pspChargeId
                             );
                         }
                         case PENDING, AUTHORIZED -> {
-                            // Transición normal a CAPTURED
                             log.info(
                                     "[Webhook] Marking payment id={} as CAPTURED from status={} via SUCCEEDED webhook",
                                     payment.getId(), current
@@ -88,28 +84,24 @@ public class WebhookApplicationService {
 
                     switch (current) {
                         case FAILED -> {
-                            // Idempotente
                             log.info(
                                     "[Webhook] Ignoring FAILED for already FAILED payment id={} pspRef={}",
                                     payment.getId(), pspChargeId
                             );
                         }
                         case CAPTURED -> {
-                            // Conflicto: ya se capturó el cobro, no lo tiramos a FAILED
                             log.warn(
                                     "[Webhook] Received FAILED for CAPTURED payment id={} pspRef={}. Keeping CAPTURED.",
                                     payment.getId(), pspChargeId
                             );
                         }
                         case REFUNDED -> {
-                            // Conflicto: ya fue reembolsado
                             log.warn(
                                     "[Webhook] Received FAILED for REFUNDED payment id={} pspRef={}. Keeping REFUNDED.",
                                     payment.getId(), pspChargeId
                             );
                         }
                         case PENDING, AUTHORIZED -> {
-                            // Transición normal a FAILED
                             log.info(
                                     "[Webhook] Marking payment id={} as FAILED from status={} via FAILED webhook",
                                     payment.getId(), current

@@ -1,11 +1,32 @@
 spring:
-  profiles: aws
+  config:
+    activate:
+      on-profile: aws
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
   data:
     redis:
-      host: your-redis-endpoint.xxxxxx.ng.0001.use1.cache.amazonaws.com
+      host: ${REDIS_HOST}
       password: ${REDIS_PASSWORD:}
       timeout: 6000
       port: 6379
+
+payment-link:
+  public-base-url: ${PAYMENT_LINK_PUBLIC_BASE_URL}
+  default-psp: STRIPE
 
 fx:
   enabled: true
