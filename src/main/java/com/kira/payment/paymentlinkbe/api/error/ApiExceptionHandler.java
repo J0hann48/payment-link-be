@@ -2,6 +2,8 @@ package com.kira.payment.paymentlinkbe.api.error;
 
 import com.kira.payment.paymentlinkbe.application.paymentlink.PaymentLinkInvalidStateException;
 import com.kira.payment.paymentlinkbe.application.paymentlink.PaymentLinkNotFoundException;
+import com.kira.payment.paymentlinkbe.domain.merchant.MerchantNotFoundException;
+import com.kira.payment.paymentlinkbe.domain.merchant.RecipientNotFoundException;
 import com.kira.payment.paymentlinkbe.domain.psp.PspRoutingException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -87,6 +89,26 @@ public class ApiExceptionHandler {
                 "INVALID_PAYMENT_LINK_STATE",
                 ex.getMessage(),
                 request.getRequestURI()
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(MerchantNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleMerchantNotFound(MerchantNotFoundException ex) {
+        ApiErrorResponse body = ApiErrorResponse.badRequest(
+                "MERCHANT_NOT_FOUND",
+                "Merchant %d not found".formatted(ex.getMerchantId()),
+                ""
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(RecipientNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleMerchantNotFound(RecipientNotFoundException ex) {
+        ApiErrorResponse body = ApiErrorResponse.badRequest(
+                "MERCHANT_NOT_FOUND",
+                "Merchant %d not found".formatted(ex.getRecipientId()),
+                ""
         );
         return ResponseEntity.badRequest().body(body);
     }
