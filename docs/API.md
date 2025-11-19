@@ -413,27 +413,7 @@ These endpoints receive asynchronous notifications from the PSP mocks.
 
 ---
 
-## 6. Health & misc endpoints
-
-Depending on your implementation you might have:
-
-### 6.1 Health check
-
-**GET** `/actuator/health`
-
-Used by infra to verify that the service is up.
-
-### 6.2 Info
-
-**GET** `/actuator/info`
-
-Can expose build info, version, git commit, etc.
-
-You can enable/disable these actuator endpoints as needed in `application.yml`.
-
----
-
-## 7. Error codes catalog (suggested)
+## 6. Error codes catalog (suggested)
 
 Below is a list of suggested `code` values for errors. Keep this in sync with your global exception handler.
 
@@ -460,7 +440,7 @@ Example error response:
 
 ---
 
-## 8. Swagger / OpenAPI
+## 7. Swagger / OpenAPI
 
 The service exposes an OpenAPI specification at runtime (if enabled):
 
