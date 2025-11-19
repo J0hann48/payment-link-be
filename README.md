@@ -164,18 +164,6 @@ Run from `backend/`:
 # Gradle
 ./gradlew test
 ```
-
-You can document the detailed testing strategy separately in `docs/TESTING.md` if needed.
-
-### Frontend tests (optional)
-
-Depending on your setup:
-
-- Component tests (e.g. React Testing Library).
-- E2E tests (e.g. Playwright / Cypress) hitting the local backend.
-
----
-
 ## Deployment
 
 For the case study, a single **staging** environment is provided on AWS.
@@ -187,6 +175,8 @@ For the case study, a single **staging** environment is provided on AWS.
 - **IaC**: Terraform (under `infra/`).
 
 ### 1. Infrastructure (Terraform)
+
+Terraform repo - 👉 [`Link`](https://github.com/J0hann48/kira-iac/tree/main) 
 
 Example workflow:
 
@@ -225,19 +215,13 @@ Typical steps:
    java -jar app.jar
    ```
 
-For production-grade deployments, you might move to:
-
-- Systemd service,
-- Elastic Beanstalk,
-- or ECS Fargate behind an ALB.
-
-### 3. Frontend deploy (Vercel or similar)
+### 3. Frontend deploy (Vercel)
 
 1. Push the frontend to a Git repo.
 2. Connect the repo to Vercel.
 3. Set the environment variable pointing to the backend:
 
-   - `VITE_API_BASE_URL=https://api.payment-link-staging.your-domain.com`
+   - `VITE_API_BASE_URL=[https://api.payment-link-staging.your-domain.com](https://lfbmowx0z4.execute-api.us-east-1.amazonaws.com/prod/api)`
 
 4. Deploy the project.
 
