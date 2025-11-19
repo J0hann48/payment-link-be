@@ -114,7 +114,7 @@ That document walks through:
 
 High-level design and key tradeoffs (modular monolith, PSP routing, FX snapshotting, AWS infra, Terraform structure) are documented in:
 
-👉 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+👉 [`docs/ARCHITECTURE_PLG.md`](docs/ARCHITECTURE_PLG.md)
 
 Key points:
 
